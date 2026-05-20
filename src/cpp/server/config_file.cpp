@@ -194,6 +194,8 @@ static const EnvMapping env_mappings[] = {
     {"LEMONADE_NO_FETCH_EXECUTABLES",     "no_fetch_executables",     nullptr},
     {"LEMONADE_DISABLE_MODEL_FILTERING", "disable_model_filtering",  nullptr},
     {"LEMONADE_ENABLE_DGPU_GTT",         "enable_dgpu_gtt",          nullptr},
+    {"LEMONADE_PROXY",                   "proxy",                    nullptr},
+    {"LEMONADE_HUGGINGFACE_ENDPOINT",    "huggingface_endpoint",     nullptr},
     // llamacpp
     {"LEMONADE_LLAMACPP",                "llamacpp",  "backend"},
     {"LEMONADE_LLAMACPP_ARGS",           "llamacpp",  "args"},

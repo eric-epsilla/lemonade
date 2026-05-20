@@ -1,6 +1,7 @@
 #include <lemon/utils/http_client.h>
 #include <lemon/utils/path_utils.h>
 #include <lemon/utils/aixlog.hpp>
+#include <lemon/utils/network_settings.h>
 #include <curl/curl.h>
 #include <iomanip>
 #include <sstream>
@@ -16,6 +17,18 @@ namespace lemon {
 namespace utils {
 
 std::atomic<long> HttpClient::default_timeout_seconds_{300};
+
+// Read proxy from NetworkSettings (set by the server's config loader; empty
+// in the CLI binary) and apply it to the curl handle. Called from every
+// curl_easy_init() site so that proxy changes via /internal/set take effect
+// on the next outbound request — no restart needed.
+static void apply_proxy_to_curl(CURL* curl) {
+    if (!curl) return;
+    std::string proxy_url = NetworkSettings::proxy();
+    if (!proxy_url.empty()) {
+        curl_easy_setopt(curl, CURLOPT_PROXY, proxy_url.c_str());
+    }
+}
 
 // Callback for writing response data to string
 static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
@@ -79,6 +92,7 @@ HttpResponse HttpClient::get(const std::string& url,
     if (!curl) {
         throw std::runtime_error("Failed to initialize CURL");
     }
+    apply_proxy_to_curl(curl);
 
     HttpResponse response;
     std::string response_body;
@@ -128,6 +142,7 @@ HttpResponse HttpClient::post(const std::string& url,
     if (!curl) {
         throw std::runtime_error("Failed to initialize CURL");
     }
+    apply_proxy_to_curl(curl);
 
     HttpResponse response;
     std::string response_body;
@@ -175,6 +190,7 @@ HttpResponse HttpClient::post_multipart(const std::string& url,
     if (!curl) {
         throw std::runtime_error("Failed to initialize CURL");
     }
+    apply_proxy_to_curl(curl);
 
     HttpResponse response;
     std::string response_body;
@@ -260,6 +276,7 @@ HttpResponse HttpClient::post_stream(const std::string& url,
     if (!curl) {
         throw std::runtime_error("Failed to initialize CURL");
     }
+    apply_proxy_to_curl(curl);
 
     HttpResponse response;
 
@@ -326,6 +343,7 @@ DownloadResult HttpClient::download_attempt(const std::string& url,
         result.error_message = "Failed to initialize CURL";
         return result;
     }
+    apply_proxy_to_curl(curl);
 
     const char* mode = (resume_from > 0) ? "ab" : "wb";
     fs::path output_path_fs = path_from_utf8(output_path);
@@ -478,6 +496,7 @@ DownloadResult HttpClient::download_attempt(const std::string& url,
             // Do a HEAD request to get the actual file size
             CURL* head_curl = curl_easy_init();
             if (head_curl) {
+                apply_proxy_to_curl(head_curl);
                 curl_easy_setopt(head_curl, CURLOPT_URL, url.c_str());
                 curl_easy_setopt(head_curl, CURLOPT_NOBODY, 1L);  // HEAD request
                 curl_easy_setopt(head_curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -696,6 +715,7 @@ bool HttpClient::is_reachable(const std::string& url, int timeout_seconds) {
     if (!curl) {
         return false;
     }
+    apply_proxy_to_curl(curl);
 
     std::string response_body;
 

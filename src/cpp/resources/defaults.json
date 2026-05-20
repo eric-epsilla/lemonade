@@ -15,6 +15,8 @@
   "disable_model_filtering": false,
   "enable_dgpu_gtt": false,
   "rocm_channel": "stable",
+  "proxy": "",
+  "huggingface_endpoint": "",
   "llamacpp": {
     "backend": "auto",
     "args": "",

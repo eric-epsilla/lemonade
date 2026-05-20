@@ -1,6 +1,7 @@
 #include "lemon/runtime_config.h"
 #include "lemon/system_info.h"
 #include "lemon/utils/aixlog.hpp"
+#include "lemon/utils/network_settings.h"
 #include "lemon/utils/path_utils.h"
 #include <algorithm>
 #include <atomic>
@@ -141,6 +142,17 @@ RuntimeConfig::RuntimeConfig(const json& config)
                     std::string(ci_mode) == "True" || std::string(ci_mode) == "TRUE")) {
         config_["log_level"] = "debug";
     }
+
+    // Mirror network settings into the utils::NetworkSettings singleton so
+    // http_client / process_manager can read them without depending on
+    // RuntimeConfig (the CLI binary links the former but not the latter).
+    if (config_.contains("proxy") && config_["proxy"].is_string()) {
+        utils::NetworkSettings::set_proxy(config_["proxy"].get<std::string>());
+    }
+    if (config_.contains("huggingface_endpoint") && config_["huggingface_endpoint"].is_string()) {
+        utils::NetworkSettings::set_huggingface_endpoint(
+            config_["huggingface_endpoint"].get<std::string>());
+    }
 }
 
 int RuntimeConfig::port() const {
@@ -229,6 +241,27 @@ std::string RuntimeConfig::rocm_channel_for_recipe(const std::string& recipe) co
         return "stable";
     }
     return channel;
+}
+
+std::string RuntimeConfig::proxy() const {
+    std::shared_lock lock(mutex_);
+    if (config_.contains("proxy") && config_["proxy"].is_string()) {
+        return config_["proxy"].get<std::string>();
+    }
+    return "";
+}
+
+std::string RuntimeConfig::huggingface_endpoint() const {
+    std::shared_lock lock(mutex_);
+    if (config_.contains("huggingface_endpoint") && config_["huggingface_endpoint"].is_string()) {
+        std::string endpoint = config_["huggingface_endpoint"].get<std::string>();
+        // Strip trailing slash so callers can always concat "/api/models/..." safely.
+        while (!endpoint.empty() && endpoint.back() == '/') {
+            endpoint.pop_back();
+        }
+        return endpoint;
+    }
+    return "";
 }
 
 json RuntimeConfig::backend_config(const std::string& backend_name) const {
@@ -426,6 +459,17 @@ void RuntimeConfig::validate(const std::string& key, const json& value) const {
         if (channel != "stable" && channel != "nightly") {
             throw std::invalid_argument("'rocm_channel' must be either 'stable', or 'nightly'");
         }
+    } else if (key == "proxy" || key == "huggingface_endpoint") {
+        if (!value.is_string()) {
+            throw std::invalid_argument("'" + key + "' must be a string");
+        }
+        const std::string s = value.get<std::string>();
+        // Empty disables the override; otherwise require a URL scheme so curl
+        // and HF clients can parse it (e.g. http://, https://, socks5://).
+        if (!s.empty() && s.find("://") == std::string::npos) {
+            throw std::invalid_argument(
+                "'" + key + "' must be empty or a URL with a scheme (e.g. http://127.0.0.1:7890)");
+        }
     } else if (is_backend_name(key)) {
         if (!value.is_object()) {
             throw std::invalid_argument("'" + key + "' must be an object");
@@ -509,6 +553,14 @@ void RuntimeConfig::apply_changes(const json& changes, json& applied_diff) {
             if (!config_.contains(key) || config_[key] != value) {
                 config_[key] = value;
                 applied_diff[key] = value;
+
+                // Keep utils::NetworkSettings in sync for live proxy/HF
+                // changes from /internal/set.
+                if (key == "proxy" && value.is_string()) {
+                    utils::NetworkSettings::set_proxy(value.get<std::string>());
+                } else if (key == "huggingface_endpoint" && value.is_string()) {
+                    utils::NetworkSettings::set_huggingface_endpoint(value.get<std::string>());
+                }
             }
         }
     }
@@ -554,6 +606,10 @@ json RuntimeConfig::set(const json& changes, ConfigSideEffectCallback side_effec
 json RuntimeConfig::snapshot() const {
     std::shared_lock lock(mutex_);
     return config_;
+}
+
+std::string huggingface_base_url() {
+    return utils::NetworkSettings::huggingface_base_url();
 }
 
 } // namespace lemon

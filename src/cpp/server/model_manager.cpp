@@ -2850,7 +2850,7 @@ void ModelManager::download_from_huggingface(const ModelInfo& info,
     // NOTE: This API call happens EVERY time this function is called, regardless of
     // whether files are cached. The do_not_upgrade check should happen in the caller
     // (download_model) to avoid this API call when using cached models.
-    std::string api_url = "https://huggingface.co/api/models/" + main_repo_id;
+    std::string api_url = huggingface_base_url() + "/api/models/" + main_repo_id;
 
     LOG(INFO, "ModelManager") << "Fetching repository file list from Hugging Face..." << std::endl;
     auto response = HttpClient::get(api_url, headers);
@@ -2995,7 +2995,7 @@ void ModelManager::download_from_huggingface(const ModelInfo& info,
         if (repo_id == main_repo_id || files.empty()) continue;
 
         // Query HF API for this repo's commit hash
-        std::string other_api_url = "https://huggingface.co/api/models/" + repo_id;
+        std::string other_api_url = huggingface_base_url() + "/api/models/" + repo_id;
         auto other_response = HttpClient::get(other_api_url, headers);
 
         std::string other_hash = "main";
@@ -3044,7 +3044,7 @@ void ModelManager::download_from_huggingface(const ModelInfo& info,
         }
 
         for (const auto& subdir : subdirs_to_fetch) {
-            std::string tree_url = "https://huggingface.co/api/models/" + repo_id + "/tree/main";
+            std::string tree_url = huggingface_base_url() + "/api/models/" + repo_id + "/tree/main";
             if (!subdir.empty()) {
                 tree_url += "/" + subdir;
             }
@@ -3078,7 +3078,7 @@ void ModelManager::download_from_huggingface(const ModelInfo& info,
             json file_entry;
             std::string size_key = repo_id + ':' + filename;
             file_entry["name"] = filename;
-            file_entry["url"] = "https://huggingface.co/" + repo_id + "/resolve/main/" + filename;
+            file_entry["url"] = huggingface_base_url() + "/" + repo_id + "/resolve/main/" + filename;
             file_entry["size"] = file_sizes.count(size_key) ? file_sizes[size_key] : 0;
             file_entry["download_path"] = repo_snapshot_paths[repo_id];
             manifest["files"].push_back(file_entry);

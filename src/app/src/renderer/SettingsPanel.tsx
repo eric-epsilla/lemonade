@@ -12,6 +12,7 @@ import {
 import ConnectionSettings from './tabs/ConnectionSettings';
 import TTSSettings from './tabs/TTSSettings';
 import LLMChatSettings from './tabs/LLMChatSettings';
+import NetworkSettings from './tabs/NetworkSettings';
 
 interface SettingsPanelProps {
   isVisible: boolean;
@@ -50,7 +51,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isVisible, searchQuery = 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(['connection_settings', 'llm_chat_settings', 'tts_settings'])
+    new Set(['connection_settings', 'network_settings', 'llm_chat_settings', 'tts_settings'])
   );
 
   useEffect(() => {
@@ -244,6 +245,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isVisible, searchQuery = 
       settingCount: 2,
     },
     {
+      id: 'network_settings',
+      label: 'Network',
+      keywords: [
+        'network', 'proxy', 'http proxy', 'https proxy', 'huggingface', 'hf endpoint',
+        'hf mirror', 'mirror', 'china', 'download',
+      ],
+      settingCount: 2,
+    },
+    {
       id: 'llm_chat_settings',
       label: 'LLM',
       keywords: [
@@ -278,6 +288,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isVisible, searchQuery = 
           onValueChangeFunc={handleTextInputChange}
           onResetFunc={handleResetField}
         />;
+      case 'network_settings':
+        return <NetworkSettings />;
       case 'llm_chat_settings':
         return <LLMChatSettings
           settings={settings}

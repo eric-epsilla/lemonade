@@ -12,6 +12,7 @@
 #endif
 
 #include <lemon/utils/process_manager.h>
+#include <lemon/utils/network_settings.h>
 #include <stdexcept>
 #include <iostream>
 #include <thread>
@@ -240,7 +241,32 @@ ProcessHandle ProcessManager::start_process(
     const std::string& working_dir,
     bool inherit_output,
     bool filter_health_logs,
-    const std::vector<std::pair<std::string, std::string>>& env_vars) {
+    const std::vector<std::pair<std::string, std::string>>& caller_env) {
+
+    // Inject network-related env vars from NetworkSettings (set by the
+    // server's config loader; empty in the CLI binary). This way subprocesses
+    // (llama-server -hf, FLM, vLLM, ryzenai, etc.) honor proxy and HF mirror
+    // without each backend needing to plumb them through. The per-platform
+    // merge code below treats later entries as overrides, so the caller's
+    // explicit env always wins over these defaults.
+    std::vector<std::pair<std::string, std::string>> env_vars;
+    {
+        std::string proxy = NetworkSettings::proxy();
+        if (!proxy.empty()) {
+            // Set both cases — curl and Python requests use different
+            // conventions; tools like huggingface_hub check uppercase, while
+            // legacy curl convention is lowercase for http_proxy.
+            env_vars.emplace_back("HTTPS_PROXY", proxy);
+            env_vars.emplace_back("HTTP_PROXY", proxy);
+            env_vars.emplace_back("https_proxy", proxy);
+            env_vars.emplace_back("http_proxy", proxy);
+        }
+        std::string hf_endpoint = NetworkSettings::huggingface_endpoint();
+        if (!hf_endpoint.empty()) {
+            env_vars.emplace_back("HF_ENDPOINT", hf_endpoint);
+        }
+    }
+    env_vars.insert(env_vars.end(), caller_env.begin(), caller_env.end());
 
     ProcessHandle handle;
     handle.handle = nullptr;

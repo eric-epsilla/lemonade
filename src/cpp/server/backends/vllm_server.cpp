@@ -62,7 +62,7 @@ static std::string detect_quant_method(const std::string& model_id) {
     }
 
     // 2. Fetch directly from HF
-    std::string url = "https://huggingface.co/" + model_id + "/resolve/main/config.json";
+    std::string url = huggingface_base_url() + "/" + model_id + "/resolve/main/config.json";
     auto resp = HttpClient::get(url);
     if (resp.status_code == 200) {
         return parse_quant_method(resp.body);

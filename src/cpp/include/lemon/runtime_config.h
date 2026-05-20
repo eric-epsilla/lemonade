@@ -40,6 +40,15 @@ public:
     std::string rocm_channel() const;
     std::string rocm_channel_for_recipe(const std::string& recipe) const;
 
+    // Network settings — used for HF downloads, backend release downloads, and
+    // any other outbound HTTP from lemond. The proxy URL accepts curl-style
+    // schemes ("http://host:port", "socks5://host:port", etc.). When empty,
+    // lemond makes direct connections. huggingface_endpoint, when non-empty,
+    // replaces "https://huggingface.co" in HF API/model URLs (e.g.
+    // "https://hf-mirror.com" for China users).
+    std::string proxy() const;
+    std::string huggingface_endpoint() const;
+
     // Backend settings (nested)
     json backend_config(const std::string& backend_name) const;
     std::string backend_string(const std::string& backend, const std::string& key) const;
@@ -118,5 +127,11 @@ private:
     // Valid log levels
     static const std::vector<std::string> valid_log_levels_;
 };
+
+/// Returns the base URL for Hugging Face requests. Honors the
+/// `huggingface_endpoint` config when set, otherwise returns
+/// "https://huggingface.co". Never has a trailing slash, so callers can
+/// safely concatenate "/api/models/..." onto the result.
+std::string huggingface_base_url();
 
 } // namespace lemon

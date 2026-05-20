@@ -140,7 +140,7 @@ void WhisperServer::download_npu_compiled_cache(const std::string& model_path,
 
     try {
         // Download .rai file directly from HuggingFace using HttpClient
-        std::string hf_url = "https://huggingface.co/" + cache_repo + "/resolve/main/" + cache_filename;
+        std::string hf_url = huggingface_base_url() + "/" + cache_repo + "/resolve/main/" + cache_filename;
 
         LOG(INFO, "WhisperServer") << "Downloading from: " << hf_url << std::endl;
 
